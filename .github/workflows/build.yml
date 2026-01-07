@@ -1,19 +1,54 @@
-name: Build Lua
+name: Build Lua for Windows
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # 手动触发
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        arch: [x86, x64]
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     
-    - name: Install dependencies
+    - name: Clone Lua source
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libreadline-dev
-    
+        git clone https://github.com/lua/lua.git
+        cd lua
+        git checkout v5.4.6  # 指定版本
+        
+    - name: Install dependencies
+      if: matrix.arch == 'x64'
+      run: |
+        choco install mingw -y  # 64位使用MinGW
+        
+    - name: Install dependencies (x86)
+      if: matrix.arch == 'x86'
+      run: |
+        # 可能需要安装32位工具链
+        choco install mingw --params="/InstallDir:C:/mingw32 /Architecture:x86" -y
+        
     - name: Build Lua
       run: |
-        make mingw
+        cd lua/src
+        # 使用MinGW编译
+        gcc -O2 -s -o lua.exe *.c -lm
+        gcc -O2 -s -o luac.exe *.c -lm
+        # 复制到工作目录
+        copy lua.exe ..\..\
+        copy luac.exe ..\..\
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: lua-windows-${{ matrix.arch }}
+        path: |
+          lua.exe
+          luac.exe
