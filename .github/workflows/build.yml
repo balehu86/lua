@@ -1,84 +1,62 @@
-name: Build Lua for Windows
+name: Build Lua 5.5
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # 手动触发
-  release:
-    types: [published]
-
-env:
-  LUA_VERSION: "5.5.0"
 
 jobs:
   build:
     strategy:
       matrix:
-        arch: [x64, win32]
-        include:
-          - arch: x64
-            artifact_name: lua-windows-x64
-            mingw_arch: x86_64
-    
-    runs-on: windows-latest  # 使用较新版本
-    
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Setup MSYS2 and MinGW
-      uses: msys2/setup-msys2@v2
-      with:
-        update: true
-        install: |
-          mingw-w64-${{ matrix.mingw_arch }}-toolchain
-          mingw-w64-${{ matrix.mingw_arch }}-gcc
-          make
-          git
-    
-    - name: Download Lua source
-      shell: bash
-      run: |
-        curl -L -o lua-${{ env.LUA_VERSION }}.tar.gz https://www.lua.org/ftp/lua-${{ env.LUA_VERSION }}.tar.gz
-        echo "lua-${{ env.LUA_VERSION }}.tar.gz"
-        mv lua-${{ env.LUA_VERSION }} lua
-    
-    - name: Build Lua
-      shell: bash
-      run: |
-        cd lua/src
-        # 编译 lua 解释器
-        make mingw
-        # 编译 luac 编译器
-        make luac.exe
-        # 检查文件是否存在
-        ls -la lua.exe luac.exe
-    
-    - name: Create release directory
-      shell: bash
-      run: |
-        mkdir -p release
-        cp lua/src/lua.exe release/
-        cp lua/src/luac.exe release/
-        # 复制 README 和许可文件
-        cp lua/README.md release/
-        cp lua/doc/readme.html release/ || true
-    
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.artifact_name }}
-        path: release/
-        retention-days: 7
-    
-    - name: Create GitHub Release
-      if: github.event_name == 'release'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          release/lua.exe
-          release/luac.exe
-        tag_name: ${{ github.ref }}
-        name: Lua ${{ env.LUA_VERSION }} Windows (${{ matrix.arch }})
+      - name: Checkout Lua source
+        uses: actions/checkout@v4
+        with:
+          repository: lua/lua
+          ref: v5.5.0   # 若将来有 5.5.x，可替换
+          fetch-depth: 1
+
+      # ---------- Linux ----------
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          make clean
+          make linux
+
+      # ---------- macOS ----------
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          make clean
+          make macosx
+
+      # ---------- Windows ----------
+      - name: Setup MinGW
+        if: runner.os == 'Windows'
+        uses: egor-tensin/setup-mingw@v2
+
+      - name: Build (Windows / MinGW)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          make clean
+          make mingw
+
+      # ---------- Package ----------
+      - name: Package artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp src/lua* dist/ || true
+          cp src/liblua* dist/ || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lua-${{ runner.os }}
+          path: dist
