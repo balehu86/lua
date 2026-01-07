@@ -22,7 +22,7 @@ jobs:
             artifact_name: lua-windows-x64
             mingw_arch: x86_64
     
-    runs-on: windows-latest-2022  # 使用较新版本
+    runs-on: windows-latest  # 使用较新版本
     
     steps:
     - name: Checkout repository
