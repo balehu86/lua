@@ -16,4 +16,4 @@ jobs:
     
     - name: Build Lua
       run: |
-        make windows
+        make mingw
