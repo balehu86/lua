@@ -21,9 +21,6 @@ jobs:
           - arch: x64
             artifact_name: lua-windows-x64
             mingw_arch: x86_64
-          - arch: win32
-            artifact_name: lua-windows-x86
-            mingw_arch: i686
     
     runs-on: windows-latest-2022  # 使用较新版本
     
@@ -45,7 +42,7 @@ jobs:
       shell: bash
       run: |
         curl -L -o lua-${{ env.LUA_VERSION }}.tar.gz https://www.lua.org/ftp/lua-${{ env.LUA_VERSION }}.tar.gz
-        echo "${{ env.LUA_SHA256 }}  lua-${{ env.LUA_VERSION }}.tar.gz"
+        echo "lua-${{ env.LUA_VERSION }}.tar.gz"
         mv lua-${{ env.LUA_VERSION }} lua
     
     - name: Build Lua
