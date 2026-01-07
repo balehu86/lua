@@ -1,19 +1,55 @@
-name: Build Lua
+name: Build Lua 5.5
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
     steps:
-    - uses: actions/checkout@v2
-    
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libreadline-dev
-    
-    - name: Build Lua
-      run: |
-        make windows
+      - name: Checkout Lua source
+        uses: actions/checkout@v4
+        with:
+          repository: lua/lua
+          ref: v5.5.0   # 若将来有 5.5.x，可替换
+          fetch-depth: 1
+
+      # ---------- macOS ----------
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          make clean
+          make macosx
+
+      # ---------- Windows ----------
+      - name: Setup MinGW
+        if: runner.os == 'Windows'
+        uses: egor-tensin/setup-mingw@v2
+
+      - name: Build (Windows / MinGW)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          make clean
+          make mingw
+
+      # ---------- Package ----------
+      - name: Package artifacts
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp src/lua* dist/ || true
+          cp src/liblua* dist/ || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lua-${{ runner.os }}
+          path: dist
